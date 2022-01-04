@@ -1,6 +1,6 @@
 RUBY-VERSION := 3.0.1
 
-installing: packages get_keys get_rvm update_terminal rvm_to_master install_ruby lock_ruby postgres
+installing: packages get_keys get_rvm update_terminal rvm_to_master install_ruby lock_ruby postgres redis check_redis_process
 .PHONY: installing
 
 packages:
@@ -31,3 +31,10 @@ postgres:
 	sudo apt-get update && sudo apt-get update
 	sudo apt-get -y install postgresql postgresql-contrib
 	cd ../api/ && bundle && bundle exec rake db:create db:load:schema
+
+redis:
+	sudo apt-get -y install redis-server
+
+check_redis_process:
+	if pgrep -x "redis-server" > /dev/null; then echo "Redis is running";	else echo "Redis does not running! Something happened! Please check redis process `sudo systemctl status redis`"; exit 1; fi
+
