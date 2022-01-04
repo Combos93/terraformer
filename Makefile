@@ -29,5 +29,5 @@ lock_ruby:
 
 postgres:
 	sudo apt-get update && sudo apt-get update
-	sudo apt install postgresql postgresql-contrib
-	cd api/ && bundle && bundle exec rake db:create db:load:schema
+	sudo apt-get -y install postgresql postgresql-contrib
+	cd ../api/ && bundle && bundle exec rake db:create db:load:schema
