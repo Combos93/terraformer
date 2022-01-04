@@ -1,11 +1,14 @@
-RUBY-VERSION := 3.0.1
+RUBY-VERSION := 3.0.1 # Please write there your needed ruby version
+MACHINE-NAME := $(shell lsb_release -cs) # DO NOT CHANGE THIS LINE, PLEASE! This is name of your OS.
+ARCH := $(shell dpkg-architecture -q DEB_BUILD_ARCH)
+BACK-APP-NAME := # The name of your backend app
 
-installing: packages get_keys get_rvm update_terminal rvm_to_master install_ruby lock_ruby postgres redis check_redis_process
+installing: packages get_keys get_rvm update_terminal rvm_to_master install_ruby lock_ruby postgres redis check_redis_process build_backend seeding_of_database
 .PHONY: installing
 
 packages:
 	sudo apt-get install curl g++ gcc autoconf automake bison \
-	libc6-dev libffi-dev libgdbm-dev libncurses5-dev libsqlite3-dev \
+	libc6-dev libffi-dev libgdbm-dev libncurses5-dev libsqlite3-dev dpkg-dev \
 	libtool libyaml-dev make pkg-config sqlite3 zlib1g-dev libgmp-dev libreadline-dev libssl-dev
 
 get_keys:
@@ -28,9 +31,11 @@ lock_ruby:
 	ruby -v
 
 postgres:
-	sudo apt-get update && sudo apt-get update
-	sudo apt-get -y install postgresql postgresql-contrib
-	cd ../api/ && bundle && bundle exec rake db:create db:load:schema
+	-sudo sh -c 'echo "deb [arch=$(ARCH)] http://apt.postgresql.org/pub/repos/apt $(MACHINE-NAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+	-sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(MACHINE-NAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+	wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+	-sudo apt-get update && sudo apt-get -y update && sudo apt update && sudo apt -y update
+	-sudo apt-get -y install postgresql-14 && sudo apt-get -y install postgresq
 
 redis:
 	sudo apt-get -y install redis-server
@@ -38,3 +43,11 @@ redis:
 check_redis_process:
 	if pgrep -x "redis-server" > /dev/null; then echo "Redis is running";	else echo "Redis does not running! Something happened! Please check redis process `sudo systemctl status redis`"; exit 1; fi
 
+download_of_backend:
+	cd ../$(BACK-APP-NAME)
+
+build_backend:
+	cd ../api/ && bundle && bundle exec rake db:create db:load:schema
+
+seeding_of_database:
+	bundle exec rake db:seed
