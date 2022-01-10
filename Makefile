@@ -3,6 +3,7 @@ SHELL := /bin/bash
 RUBY-VERSION := 3.0.1 # Please write there your needed ruby version
 GIT-BACKEND := # Please write there your needed backend git link with ssh or https which using with git clone
 GIT-FRONTEND := # Please write there your needed frontend git link with ssh or https which using with git clone
+DB-VERSION := # Please write there desired version of PostgreSQL
 
 MACHINE-NAME := $(shell lsb_release -cs)# DO NOT CHANGE THIS LINE, PLEASE! This is name of your OS.
 BACK-APP-NAME := $(shell basename $(GIT-BACKEND) .git) # The name of your backend app
@@ -12,12 +13,18 @@ installing: check_args packages get_keys get_rvm update_terminal rvm_to_master i
 .PHONY: installing
 
 check_args:
-	if ! [ -s $(DB-ROLE) ] ; then \
-		echo "Argument for DB is passed!"; \
-	else \
-		echo "Please fill DB-ROLE arg for creating db role"; \
-		exit 1; \
-	fi
+ifdef DB-ROLE
+ifdef DB-VERSION
+ifdef GIT-BACKEND
+ifdef GIT-FRONTEND
+	@echo "Arguments are passed!"
+else
+	echo "Please fill all args for correcting script work."
+	exit 1
+endif
+endif
+endif
+endif
 
 packages:
 	sudo apt-get install curl g++ gcc autoconf automake bison libpq-dev \
@@ -45,17 +52,17 @@ lock_ruby:
 	sleep 2
 
 postgres:
-	if [ -s /etc/apt/sources.list.d/pgdg.list ]; then \
-		sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(MACHINE-NAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'; \
-	fi
-	wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -; \
-	sudo apt-get -y update; \
-	sudo apt-get -y install postgresql-14; \
-	psql --version; \
-	sleep 2; \
+ifneq ("$(wildcard /etc/apt/sources.list.d/pgdg.list)","")
+	sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(MACHINE-NAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+endif
+	wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+	sudo apt-get -y update
+	sudo apt-get -y install postgresql-$(DB-VERSION)
+	psql --version
+	sleep 2
 
 manage_postgres:
-	sudo sed -i 's!5433!5432!' /etc/postgresql/14/main/postgresql.conf
+	sudo sed -i 's!5433!5432!' /etc/postgresql/$(DB-VERSION)/main/postgresql.conf
 	sudo service postgresql restart
 	sleep 5
 	sudo -u postgres createuser -s -d  $(DB-ROLE)
@@ -67,7 +74,6 @@ check_redis_process:
 	if pgrep -x "redis-server" > /dev/null; then echo "Redis is running";	else echo "Redis does not running! Something happened! Please check redis process sudo systemctl status redis"; exit 1; fi
 
 download_backend:
-	# Если уже есть папка - то нужно избежать ошибки повторного клонирования
 	cd .. && git clone $(GIT-BACKEND)
 
 build_backend:
