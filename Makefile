@@ -1,4 +1,4 @@
-SHELL = /bin/bash
+SHELL := /bin/bash
 
 RUBY-VERSION := 3.0.1 # Please write there your needed ruby version
 GIT-BACKEND := # Please write there your needed backend git link with ssh or https which using with git clone
@@ -20,7 +20,7 @@ check_args:
 	fi
 
 packages:
-	sudo apt-get install curl g++ gcc autoconf automake bison \
+	sudo apt-get install curl g++ gcc autoconf automake bison libpq-dev \
 	libc6-dev libffi-dev libgdbm-dev libncurses5-dev libsqlite3-dev dpkg-dev \
 	libtool libyaml-dev make pkg-config sqlite3 zlib1g-dev libgmp-dev libreadline-dev libssl-dev
 
@@ -47,14 +47,17 @@ lock_ruby:
 postgres:
 	if [ -s /etc/apt/sources.list.d/pgdg.list ]; then \
 		sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(MACHINE-NAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'; \
-		wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -; \
-		-sudo apt-get -y update; \
-		sudo apt-get -y install postgresql-14; \
-		psql --version; \
-		sleep 2; \
 	fi
+	wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -; \
+	sudo apt-get -y update; \
+	sudo apt-get -y install postgresql-14; \
+	psql --version; \
+	sleep 2; \
 
 manage_postgres:
+	sudo sed -i 's!5433!5432!' /etc/postgresql/14/main/postgresql.conf
+	sudo service postgresql restart
+	sleep 5
 	sudo -u postgres createuser -s -d  $(DB-ROLE)
 
 redis:
@@ -64,10 +67,11 @@ check_redis_process:
 	if pgrep -x "redis-server" > /dev/null; then echo "Redis is running";	else echo "Redis does not running! Something happened! Please check redis process sudo systemctl status redis"; exit 1; fi
 
 download_backend:
+	# Если уже есть папка - то нужно избежать ошибки повторного клонирования
 	cd .. && git clone $(GIT-BACKEND)
 
 build_backend:
-	cd ../$(BACK-APP-NAME); cp .env.example .env; bundle && bundle exec rake db:create db:load:schema
+	cd ../$(BACK-APP-NAME); cp .env.example .env; bundle && bundle exec rake db:create db:schema:load
 
 seeding_of_database:
 	cd ../$(BACK-APP-NAME); bundle exec rake db:seed
