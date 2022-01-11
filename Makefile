@@ -12,11 +12,8 @@ FRONT-APP-NAME := $(shell basename $(GIT-FRONTEND) .git) # The name of your fron
 .DEFAULT_GOAL := installing
 
 installing: check_args packages rvm_rules get_keys get_rvm update_terminal rvm_to_master install_ruby lock_ruby \
-	postgres redis check_redis_process download_backend build_backend seeding_of_database
+	postgres_rules postgres manage_postgres redis check_redis_process download_backend build_backend seeding_of_database
 .PHONY: installing
-
-rvm_rules:
-	cd makefiles && $(MAKE) -k rvm.mk
 
 check_args:
 ifdef DB-ROLE
@@ -37,21 +34,11 @@ packages:
 	libc6-dev libffi-dev libgdbm-dev libncurses5-dev libsqlite3-dev dpkg-dev \
 	libtool libyaml-dev make pkg-config sqlite3 zlib1g-dev libgmp-dev libreadline-dev libssl-dev
 
-postgres:
-ifneq ("$(wildcard /etc/apt/sources.list.d/pgdg.list)","")
-	sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(MACHINE-NAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-endif
-	wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-	-sudo apt-get -y update
-	sudo apt-get -y install postgresql-$(DB-VERSION)
-	psql --version
-	sleep 2
+rvm_rules:
+	cd makefiles && $(MAKE) -k rvm.mk
 
-manage_postgres:
-	sudo sed -i 's!5433!5432!' /etc/postgresql/$(DB-VERSION)/main/postgresql.conf
-	sudo service postgresql restart
-	sleep 5
-	sudo -u postgres createuser -s -d  $(DB-ROLE)
+postgres_rules:
+		cd makefiles && $(MAKE) postgres.mk
 
 redis:
 	sudo apt-get -y install redis-server
@@ -68,4 +55,4 @@ build_backend:
 seeding_of_database:
 	cd ../$(BACK-APP-NAME); bundle exec rake db:seed
 
--include makefiles/rvm.mk
+-include makefiles/*.mk
